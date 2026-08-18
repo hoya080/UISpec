@@ -60,7 +60,7 @@ img: 画像の説明            画像枠（URL指定で実画像を表示）
 ```text
 #input.center.w-40: 入力#     配置（.left / .center / .right）
 #btn-primary.w-50: 送信#      幅（.w-1〜100、.w-auto）
-#btn.red: 削除#               色（.red / .blue / .green / .orange / .purple / .yellow / .pink / .cyan / .teal / .brown / .gray / .black / .white）
+#btn.red: #   テキスト            色（.red / .blue / .green / .orange / .purple / .yellow / .pink / .cyan / .teal / .brown / .gray / .black / .white）
 ```
 
 ### レイアウト
@@ -79,7 +79,7 @@ $ラベル$ #input: 入力#       同一行内での横並び配置
 \$ \# \[ \] \| \\ \( \)
 ```
 
-### 実戦例
+### 例
 
 ```text
 [ヘッダー: ユーザー情報登録]
