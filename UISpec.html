@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UISpec 記法リファレンスガイド</title>
+  <style>
+    :root {
+      --primary-color: #0e639c;
+      --bg-main: #f8fafc;
+      --bg-card: #ffffff;
+      --text-main: #334155;
+      --text-heading: #0f172a;
+      --border-color: #e2e8f0;
+      --code-bg: #f1f5f9;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.6;
+      color: var(--text-main);
+      background-color: var(--bg-main);
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: var(--bg-card);
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      border: 1px solid var(--border-color);
+    }
+
+    h1 {
+      font-size: 24px;
+      color: var(--text-heading);
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--primary-color);
+    }
+
+    h2 {
+      font-size: 17px;
+      color: var(--text-heading);
+      margin-top: 32px;
+      margin-bottom: 12px;
+      padding-left: 10px;
+      border-left: 4px solid var(--primary-color);
+    }
+
+    p {
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+
+    /* テーブルデザイン */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      font-size: 13.5px;
+    }
+
+    th, td {
+      border: 1px solid var(--border-color);
+      padding: 10px 12px;
+      text-align: left;
+    }
+
+    th {
+      background-color: #f1f5f9;
+      color: var(--text-heading);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    /* コード表記 */
+    code {
+      background-color: var(--code-bg);
+      color: #0f172a;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: Consolas, "Courier New", Courier, Monaco, monospace;
+      font-size: 13px;
+      border: 1px solid #cbd5e1;
+    }
+
+    /* コードブロックの改行・整形設定 */
+    pre {
+      background-color: #1e293b;
+      color: #f8fafc;
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin-top: 12px;
+      margin-bottom: 16px;
+      white-space: pre; /* 改行とスペースを厳密に維持 */
+    }
+
+    pre code {
+      background: transparent;
+      color: inherit;
+      padding: 0;
+      border: none;
+      font-family: Consolas, "Courier New", Courier, Monaco, monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      white-space: pre;
+    }
+
+    .desc {
+      color: #64748b;
+      font-size: 13px;
+    }
+
+    /* 印刷対応 */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .container { box-shadow: none; border: none; padding: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>📝 UISpec 記法リファレンスガイド</h1>
+
+    <h2>1. 階層構造とページのつながり（インデント構文）</h2>
+    <p class="desc">行頭にスペースによる<strong>インデント（字下げ）</strong>を入れることで、要素同士の親子関係やコンテンツの繋がりを表現します。</p>
+    <table>
+      <thead>
+        <tr>
+          <th>記法</th>
+          <th>説明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>インデント（スペース）</strong></td>
+          <td>親要素の下にインデントを入れて記述することで、その親要素内に含まれる子コンテンツとしてレンダリングされます。</td>
+        </tr>
+        <tr>
+          <td><strong>ツリー記号 (<code>├─</code> / <code>└─</code>)</strong></td>
+          <td>
+            視覚的に繋がりをわかりやすくするためのツリー記号も<strong>インデントの一部（スペースと同等）</strong>として扱われます。<br>
+            ネスト構造を表現する際、記号を含めたインデント量で親子の繋がりを判別します。
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>2. 全体レイアウト・構造枠</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>コンポーネント</th>
+          <th>記述パターン</th>
+          <th>説明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>ヘッダー</strong></td>
+          <td><code>[ヘッダー: タイトル]</code></td>
+          <td>画面最上部に固定表示されるヘッダーバー</td>
+        </tr>
+        <tr>
+          <td><strong>フッター</strong></td>
+          <td><code>[フッター: コピーライトなど]</code></td>
+          <td>画面最下部に固定表示されるフッターバー</td>
+        </tr>
+        <tr>
+          <td><strong>メイン領域</strong></td>
+          <td><code>[メイン領域]</code></td>
+          <td>コンテンツ全体のベースとなる外枠エリア</td>
+        </tr>
+        <tr>
+          <td><strong>ブロック枠</strong></td>
+          <td><code>[ブロック名]</code></td>
+          <td>コンテンツを囲む枠線エリア（内部要素に合わせて高さ自動調整）</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>3. フォーム＆UIコンポーネント</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>要素</th>
+          <th>記述パターン</th>
+          <th>備考・表示例</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>標準ボタン</strong></td>
+          <td><code>#btn: ボタン名#</code></td>
+          <td>灰色スタイルの標準ボタン</td>
+        </tr>
+        <tr>
+          <td><strong>プライマリボタン</strong></td>
+          <td><code>#btn-primary: ボタン名#</code></td>
+          <td>青色アクセントの主要ボタン</td>
+        </tr>
+        <tr>
+          <td><strong>テキスト入力枠</strong></td>
+          <td><code>#input: プレースホルダー#</code></td>
+          <td>テキスト入力用のインプットボックス</td>
+        </tr>
+        <tr>
+          <td><strong>セレクトボックス</strong></td>
+          <td><code>#select: 選択肢1 | 選択肢2#</code></td>
+          <td>パイプ記号（<code>|</code>）区切りでドロップダウン選択肢を指定</td>
+        </tr>
+        <tr>
+          <td><strong>チェックボックス</strong></td>
+          <td><code>#check: ラベル名#</code></td>
+          <td>複数選択可能なチェックボックス</td>
+        </tr>
+        <tr>
+          <td><strong>ラジオボタン</strong></td>
+          <td><code>#radio: ラベル名#</code></td>
+          <td>単一選択用のラジオボタン</td>
+        </tr>
+        <tr>
+          <td><strong>通常テキスト</strong></td>
+          <td><code>$テキスト内容$</code> または <code>$テキスト内容</code></td>
+          <td>標準的なラベル・本文テキスト</td>
+        </tr>
+        <tr>
+          <td><strong>強調タイトルテキスト</strong></td>
+          <td><code>#タイトルテキスト#</code></td>
+          <td>コロン指定のないコンポーネント。太字で強調表示されます</td>
+        </tr>
+        <tr>
+          <td><strong>画像枠</strong></td>
+          <td><code>img: 画像の説明</code><br><code>img: https://...</code></td>
+          <td>説明テキスト付きプレースホルダー、またはWeb画像URLの直接描画</td>
+        </tr>
+        <tr>
+          <td><strong>エスケープ処理</strong></td>
+          <td><code>\$</code> <code>\#</code> <code>\[</code> <code>\]</code> <code>\|</code></td>
+          <td>記号自体を文字として表示したい場合は直前にバックスラッシュ（<code>\</code>）を付けます</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>4. 描画位置と横幅の指定</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>指定項目</th>
+          <th>記述パターン</th>
+          <th>説明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>配置（アライメント）</strong></td>
+          <td><code>#input.center: 入力#</code><br><code>#btn.right: ボタン#</code></td>
+          <td>コンポーネント名の後に <code>.center</code> / <code>.left</code> / <code>.right</code> を付与して、その要素の配置を指定します。</td>
+        </tr>
+        <tr>
+          <td><strong>幅指定 (.w-1〜100)</strong></td>
+          <td><code>#input.w-30: 姓#</code><br><code>#btn-primary.w-50: 送信#</code></td>
+          <td>コンポーネント名の直後に <code>.w-数値</code> を付与し、親要素に対するパーセント幅を指定します。</td>
+        </tr>
+        <tr>
+          <td><strong>色指定 (.red など)</strong></td>
+          <td><code>#btn.red: 削除#</code><br><code>#btn-primary.blue: 送信#</code></td>
+          <td>コンポーネント名の後に <code>.red</code> / <code>.blue</code> / <code>.green</code> / <code>.orange</code> / <code>.purple</code> / <code>.yellow</code> / <code>.pink</code> / <code>.cyan</code> / <code>.teal</code> / <code>.brown</code> / <code>.gray</code> / <code>.black</code> / <code>.white</code> を付与して配色を指定します。</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>5. 多段レイアウト＆テーブル</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>機能</th>
+          <th>記述パターン</th>
+          <th>説明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>カラム分割</strong></td>
+          <td><code>[左エリア | 右エリア]</code></td>
+          <td>パイプ記号 <code>|</code> で区切ることで左右多カラム構成を作成（エスケープ: <code>\|</code>）</td>
+        </tr>
+        <tr>
+          <td><strong>簡易テーブル行</strong></td>
+          <td><code>#tr: 項目名 (ステータス)#</code></td>
+          <td>表形式で描画。カッコ内のテキスト（編集可・閲覧のみ等）はハイライト表示化</td>
+        </tr>
+        <tr>
+          <td><strong>要素の横並び</strong></td>
+          <td><code>$ラベル$ #input: 入力# #btn: ボタン#</code></td>
+          <td>1行の中に複数のテキストやコンポーネントを連続して書くことで、インラインで横並びに配置されます</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>6. 実戦コード例</h2>
+    <p class="desc">インデント構造（<code>├─</code> や <code>└─</code>）と記法（<code>$</code>, <code>#</code>, <code>#tr:</code>）を組み合わせることで、直感的にUI構造を定義できます。</p>
+
+<pre><code>[ヘッダー: ユーザー情報登録]
+
+[メイン領域]
+  [アカウント作成]
+    ├─ #新規ユーザー情報の入力.center#
+    ├─ #input.w-45: お名前# #input.w-45: フリガナ#
+    ├─ #input.w-90: メールアドレス#
+    ├─ #select.w-45: 権限を選択 | 一般ユーザー | 管理者#
+    ├─ #check: 利用規約に同意する#
+    └─ #btn.right.w-20: キャンセル# #btn-primary.right.w-30: 登録実行#
+
+  [所属一覧]
+    ├─ #tr: 部署名 (開発部)#
+    └─ #tr: 役職 (リーダー)#
+
+[フッター: © System Management]</code></pre>
+
+  </div>
+
+</body>
+</html>

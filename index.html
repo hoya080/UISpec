@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UISpec Previewer (Multi-page)</title>
+  <!-- プレビュー画像化ライブラリ -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; height: 100vh; display: flex; flex-direction: column; background: #1e1e1e; color: #fff; }
+    
+    header { background: #2d2d2d; padding: 10px 20px; border-bottom: 1px solid #444; display: flex; align-items: center; justify-content: space-between; }
+    h1 { font-size: 16px; font-weight: 600; color: #ccc; }
+    
+    .header-actions { display: flex; gap: 8px; }
+    .btn { background: #3a3d41; color: #fff; border: 1px solid #555; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+    .btn:hover { background: #45494e; }
+    .btn-primary { background: #0e639c; border-color: #1177bb; }
+    .btn-primary:hover { background: #1177bb; }
+
+    /* タブバー */
+    .tab-bar { background: #252526; border-bottom: 1px solid #333; display: flex; align-items: center; padding: 0 10px; overflow-x: auto; }
+    .tab { background: #2d2d2d; color: #aaa; padding: 8px 16px; font-size: 12px; border-right: 1px solid #1e1e1e; cursor: pointer; display: flex; align-items: center; gap: 8px; user-select: none; max-width: 180px; }
+    .tab.active { background: #1e1e1e; color: #fff; border-top: 2px solid #0e639c; font-weight: bold; }
+    .tab-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; outline: none; }
+    .tab-close { font-size: 14px; opacity: 0.6; border-radius: 50%; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; }
+    .tab-close:hover { background: #444; color: #ff6b6b; opacity: 1; }
+    .add-tab-btn { background: transparent; border: none; color: #aaa; font-size: 16px; padding: 6px 12px; cursor: pointer; }
+    .add-tab-btn:hover { color: #fff; }
+
+    .container { flex: 1; display: flex; overflow: hidden; position: relative; }
+    
+    /* エディタエリア */
+    .editor-section { width: 40%; border-right: 1px solid #444; display: flex; flex-direction: column; background: #252526; }
+    .section-title { background: #333; padding: 8px 15px; font-size: 11px; font-weight: bold; color: #aaa; letter-spacing: 1px; }
+    textarea { flex: 1; width: 100%; padding: 15px; background: transparent; border: none; color: #d4d4d4; font-family: "Courier New", Consolas, monospace; font-size: 13px; line-height: 1.5; resize: none; outline: none; }
+    
+    /* プレビューエリア */
+    .preview-section { flex: 1; display: flex; flex-direction: column; background: #f4f5f7; color: #333; }
+    .preview-content { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #f4f5f7; }
+    
+    /* UIコンポーネント */
+    .ui-header { background: #ffffff; border: 2px solid #333; border-radius: 6px; padding: 12px 16px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
+    .ui-footer { background: #e2e8f0; border: 2px solid #475569; border-radius: 6px; padding: 12px 16px; font-weight: bold; font-size: 13px; color: #334155; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
+    .ui-main { background: #ffffff; border: 2px dashed #666; border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+    
+    .ui-row { display: flex; gap: 12px; width: 100%; flex: 1; align-items: stretch; }
+    .ui-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+    
+    /* 中身に合わせてサイズ可変にする枠（ブロック） */
+    .ui-block { 
+      background: #eef2f5; 
+      border: 1px solid #bcc4d0; 
+      border-radius: 4px; 
+      padding: 12px 14px 16px 14px; 
+      display: flex; 
+      flex-direction: column; 
+      gap: 8px; 
+      flex: 0 0 auto; 
+      margin-bottom: 8px;
+    }
+    .ui-block-title { font-size: 13px; font-weight: bold; color: #444; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 4px; }
+    
+    /* 横並びインライン行（配置制御対応） */
+    .ui-inline-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 2px 0; width: 100%; }
+    .ui-align-left { justify-content: flex-start; }
+    .ui-align-center { justify-content: center; text-align: center; }
+    .ui-align-right { justify-content: flex-end; }
+
+    /* 各要素スタイル */
+    .ui-text { font-size: 13px; color: #475569; line-height: 1.5; white-space: pre-wrap; }
+    .ui-element-btn { display: inline-flex; align-items: center; justify-content: center; padding: 6px 14px; background: #e2e8f0; color: #1e293b; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: default; }
+    .ui-element-btn-primary { display: inline-flex; align-items: center; justify-content: center; padding: 6px 14px; background: #2563eb; color: #ffffff; border: 1px solid #1d4ed8; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: default; }
+    .ui-element-input { padding: 6px 10px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; color: #334155; outline: none; }
+    .ui-element-select { padding: 6px 10px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; color: #334155; outline: none; }
+    .ui-element-checkable { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; }
+
+    .w-auto { width: auto !important; flex: initial !important; }
+    
+    .ui-image-container { display: inline-flex; align-items: center; justify-content: center; background: #e2e8f0; border: 1px dashed #94a3b8; border-radius: 4px; padding: 8px 12px; color: #64748b; font-size: 12px; font-weight: 500; }
+    .ui-image-real { max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #cbd5e1; }
+
+    .ui-table { width: 100%; border-collapse: collapse; background: #fff; margin-top: 6px; font-size: 13px; }
+    .ui-table th, .ui-table td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: left; }
+    .ui-table th { background: #f1f5f9; color: #334155; }
+
+    /* モーダルヘルプ */
+    .modal-overlay { position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 100; }
+    .modal-content { background: #ffffff; color: #333; width: 80%; max-width: 750px; max-height: 85vh; border-radius: 8px; padding: 24px; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 12px; margin-bottom: 16px; }
+    .modal-title { font-size: 18px; font-weight: bold; }
+    .close-btn { cursor: pointer; font-size: 20px; font-weight: bold; border: none; background: none; }
+    
+    .help-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    .help-table th, .help-table td { border: 1px solid #ddd; padding: 8px 10px; font-size: 12px; text-align: left; }
+    .help-table th { background: #f8fafc; }
+    code { background: #f1f5f9; padding: 2px 5px; border-radius: 4px; font-family: monospace; color: #0f172a; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>UISpec Previewer</h1>
+    <div class="header-actions">
+      <button class="btn" onclick="exportText()">💾 テキスト保存</button>
+      <button class="btn" onclick="exportImage()">🖼️ 画像保存 (PNG)</button>
+      <button class="btn" onclick="exportHTML()">🌐 HTML保存 (HTML)</button>
+      <button class="btn btn-primary" onclick="toggleHelp()">❓ 使い方</button>
+    </div>
+  </header>
+
+  <!-- タブバーエリア -->
+  <div class="tab-bar" id="tabBar">
+    <div id="tabList" style="display: flex;"></div>
+    <button class="add-tab-btn" onclick="addNewPage()" title="新しいページを追加">+</button>
+  </div>
+
+  <div class="container">
+    <div class="editor-section">
+      <div class="section-title">TEXT INPUT</div>
+      <textarea id="textInput" placeholder="ここに記述..."></textarea>
+    </div>
+
+    <div class="preview-section">
+      <div class="section-title" style="background:#e2e8f0; color:#475569;">UI PREVIEW</div>
+      <div class="preview-content" id="previewContainer"></div>
+    </div>
+
+    <!-- 使い方モーダル -->
+    <div class="modal-overlay" id="helpModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="modal-title">📖 使い方ガイド</div>
+          <button class="close-btn" onclick="toggleHelp()">&times;</button>
+        </div>
+
+        <table class="help-table">
+          <thead>
+            <tr>
+              <th style="width: 35%;">機能・記述</th>
+              <th>説明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>[ブロック名]</code></td>
+              <td>領域（枠線エリア）を作成します。</td>
+            </tr>
+            <tr>
+              <td><code>$テキスト$</code> または <code>$テキスト</code></td>
+              <td>テキスト領域を定義します。エスケープ例: <code>\$</code></td>
+            </tr>
+            <tr>
+              <td><code>#コンポーネント#</code> または <code>#コンポーネント</code></td>
+              <td>
+                ボタンや入力欄などのUI要素を作成します。<br>
+                例: <code>#btn: ボタン#</code>, <code>#btn-primary.w-40: ログイン#</code>, <code>#input.w-50: プレースホルダー#</code>, <code>#check: 保持#</code>, <code>#radio: 選択#</code>, <code>#select: A, B, C#</code><br>
+                オプションはドット区切りで指定します。<br>
+                幅: <code>.w-40</code>, <code>.w-auto</code> / 配置: <code>.center</code>, <code>.left</code>, <code>.right</code> / 色: <code>.red</code>, <code>.blue</code>, <code>.green</code>, <code>.orange</code>, <code>.purple</code>, <code>.yellow</code>, <code>.pink</code>, <code>.cyan</code>, <code>.teal</code>, <code>.brown</code>, <code>.gray</code>, <code>.black</code>, <code>.white</code><br>
+                例: <code>#input.center.w-40: ユーザーID#</code>, <code>#btn.red.right.w-30: 削除#</code>
+              </td>
+            </tr>
+            <tr>
+              <td><code>[左カラム | 右カラム]</code></td>
+              <td>領域分割を行います。パイプ記号のエスケープ: <code>\|</code></td>
+            </tr>
+            <tr>
+              <td><code>#tr: 項目名 (権限)</code></td>
+              <td>テーブル列ヘッダーとデータ内容を指定します。</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="margin-top: 20px; text-align: right;">
+          <button class="btn btn-primary" onclick="toggleHelp()">閉じる</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let pages = [
+      {
+        id: 'p1',
+        title: 'メイン画面',
+        text: `[ヘッダー: 管理パネル]
+
+[メイン領域]
+  [ログイン画面]
+    ├─ #ログインアカウント.center#
+    ├─ #input.center.w-40: ユーザーIDを入力#
+    ├─ #input.center.w-40: パスワードを入力#
+    ├─ #check.center: ログイン情報を保持する#
+    ├─ #btn-primary.center.w-40: ログイン#
+    └─ #パスワードをお忘れの方はこちら.center#
+
+  [別のコンパクト枠]
+    ├─ $エスケープテスト: \\| \\$ \\# \\[ ]$
+    ├─ #btn.w-30: 確認#
+    └─ #btn.red.right.w-30: 削除#
+
+[フッター: © 2026 Company Inc.]`
+      }
+    ];
+
+    let activePageIndex = 0;
+
+    const textInput = document.getElementById('textInput');
+    const previewContainer = document.getElementById('previewContainer');
+    const helpModal = document.getElementById('helpModal');
+    const tabList = document.getElementById('tabList');
+
+    function toggleHelp() {
+      helpModal.style.display = (helpModal.style.display === 'flex') ? 'none' : 'flex';
+    }
+
+    function renderTabs() {
+      tabList.innerHTML = '';
+      pages.forEach((page, index) => {
+        const tab = document.createElement('div');
+        tab.className = `tab ${index === activePageIndex ? 'active' : ''}`;
+        
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'tab-title';
+        titleSpan.innerText = page.title;
+        titleSpan.ondblclick = (e) => editTabTitle(index, titleSpan, e);
+
+        tab.onclick = () => switchTab(index);
+
+        tab.appendChild(titleSpan);
+
+        if (pages.length > 1) {
+          const closeBtn = document.createElement('span');
+          closeBtn.className = 'tab-close';
+          closeBtn.innerHTML = '&times;';
+          closeBtn.onclick = (e) => {
+            e.stopPropagation();
+            removePage(index);
+          };
+          tab.appendChild(closeBtn);
+        }
+
+        tabList.appendChild(tab);
+      });
+    }
+
+    function switchTab(index) {
+      pages[activePageIndex].text = textInput.value;
+      activePageIndex = index;
+      textInput.value = pages[activePageIndex].text;
+      renderTabs();
+      renderUI();
+    }
+
+    function addNewPage() {
+      pages[activePageIndex].text = textInput.value;
+      const newId = 'p' + (Date.now());
+      pages.push({
+        id: newId,
+        title: `新規ページ ${pages.length + 1}`,
+        text: `[ヘッダー: 新規画面]\n\n[メイン領域]\n  [コンテンツ領域]\n    ├─ $新しい画面$\n    └─ #btn-primary: ボタン#`
+      });
+      activePageIndex = pages.length - 1;
+      textInput.value = pages[activePageIndex].text;
+      renderTabs();
+      renderUI();
+    }
+
+    function removePage(index) {
+      if (pages.length <= 1) return;
+      pages.splice(index, 1);
+      if (activePageIndex >= pages.length) {
+        activePageIndex = pages.length - 1;
+      }
+      textInput.value = pages[activePageIndex].text;
+      renderTabs();
+      renderUI();
+    }
+
+    function editTabTitle(index, element, event) {
+      event.stopPropagation();
+      const currentTitle = pages[index].title;
+      const newTitle = prompt('ページ名を入力してください:', currentTitle);
+      if (newTitle && newTitle.trim() !== '') {
+        pages[index].title = newTitle.trim();
+        renderTabs();
+      }
+    }
+
+    function exportText() {
+      pages[activePageIndex].text = textInput.value;
+      const activePage = pages[activePageIndex];
+      const blob = new Blob([activePage.text], { type: 'text/plain;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${activePage.title}_${new Date().toISOString().slice(0,10)}.txt`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+
+    function exportImage() {
+      const activePage = pages[activePageIndex];
+      html2canvas(previewContainer, {
+        scale: 2,
+        backgroundColor: '#f4f5f7'
+      }).then(canvas => {
+        const link = document.createElement('a');
+        link.href = canvas.toDataURL('image/png');
+        link.download = `${activePage.title}_${new Date().toISOString().slice(0,10)}.png`;
+        link.click();
+      });
+    }
+
+    function exportHTML() {
+      const activePage = pages[activePageIndex];
+      const htmlContent = `<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${activePage.title}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f5f7; color: #333; padding: 20px; }
+    
+    /* UIコンポーネント */
+    .ui-header { background: #ffffff; border: 2px solid #333; border-radius: 6px; padding: 12px 16px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .ui-footer { background: #e2e8f0; border: 2px solid #475569; border-radius: 6px; padding: 12px 16px; font-weight: bold; font-size: 13px; color: #334155; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+    .ui-main { background: #ffffff; border: 2px dashed #666; border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    
+    .ui-row { display: flex; gap: 12px; width: 100%; align-items: stretch; }
+    .ui-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+    
+    .ui-block { 
+      background: #eef2f5; 
+      border: 1px solid #bcc4d0; 
+      border-radius: 4px; 
+      padding: 12px 14px 16px 14px; 
+      display: flex; 
+      flex-direction: column; 
+      gap: 8px; 
+      margin-bottom: 8px;
+    }
+    .ui-block-title { font-size: 13px; font-weight: bold; color: #444; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 4px; }
+    
+    .ui-inline-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 2px 0; width: 100%; }
+    .ui-align-left { justify-content: flex-start; }
+    .ui-align-center { justify-content: center; text-align: center; }
+    .ui-align-right { justify-content: flex-end; }
+
+    .ui-text { font-size: 13px; color: #475569; line-height: 1.5; white-space: pre-wrap; }
+    .ui-element-btn { display: inline-flex; align-items: center; justify-content: center; padding: 6px 14px; background: #e2e8f0; color: #1e293b; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; font-weight: 600; }
+    .ui-element-btn-primary { display: inline-flex; align-items: center; justify-content: center; padding: 6px 14px; background: #2563eb; color: #ffffff; border: 1px solid #1d4ed8; border-radius: 4px; font-size: 12px; font-weight: 600; }
+    .ui-element-input { padding: 6px 10px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; color: #334155; outline: none; }
+    .ui-element-select { padding: 6px 10px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; color: #334155; outline: none; }
+    .ui-element-checkable { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; }
+
+    .w-auto { width: auto !important; flex: initial !important; }
+    
+    .ui-image-container { display: inline-flex; align-items: center; justify-content: center; background: #e2e8f0; border: 1px dashed #94a3b8; border-radius: 4px; padding: 8px 12px; color: #64748b; font-size: 12px; font-weight: 500; }
+    .ui-image-real { max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #cbd5e1; }
+
+    .ui-table { width: 100%; border-collapse: collapse; background: #fff; margin-top: 6px; font-size: 13px; }
+    .ui-table th, .ui-table td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: left; }
+    .ui-table th { background: #f1f5f9; color: #334155; }
+  </style>
+</head>
+<body>
+  ${previewContainer.innerHTML}
+</body>
+</html>`;
+
+      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${activePage.title}_${new Date().toISOString().slice(0,10)}.html`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+
+    function getIndentLength(line) {
+      const match = line.match(/^[\s│├└─]*/);
+      return match ? match[0].length : 0;
+    }
+
+    // エスケープ文字アンエスケープ用ヘルパー
+    function unescapeText(str) {
+      if (!str) return '';
+      return str.replace(/\\([\$#\[\]\(\)\|\\:])/g, '$1');
+    }
+
+    // エスケープに対応したパイプ分割処理
+    function splitUnescapedPipe(str) {
+      const result = [];
+      let current = '';
+      let escaped = false;
+      for (let i = 0; i < str.length; i++) {
+        const char = str[i];
+        if (escaped) {
+          current += char;
+          escaped = false;
+        } else if (char === '\\') {
+          escaped = true;
+          current += char;
+        } else if (char === '|') {
+          result.push(current);
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      result.push(current);
+      return result;
+    }
+
+    // コンポーネントの色パレット
+    const COMP_COLORS = {
+      red: '#ef4444',
+      blue: '#2563eb',
+      green: '#16a34a',
+      yellow: '#eab308',
+      orange: '#f97316',
+      purple: '#7c3aed',
+      pink: '#ec4899',
+      gray: '#6b7280',
+      grey: '#6b7280',
+      black: '#111827',
+      white: '#ffffff',
+      cyan: '#06b6d4',
+      teal: '#0d9488',
+      brown: '#92400e'
+    };
+
+    // ".center.w-40.red" のようなドット区切りの属性文字列を解析
+    function parseCompAttrs(attrStr) {
+      const attrs = { width: 'w-auto', align: null, color: null };
+      if (!attrStr) return attrs;
+      attrStr.split('.').forEach(a => {
+        if (a === 'w-auto') {
+          attrs.width = 'w-auto';
+        } else if (/^w-\d+$/.test(a)) {
+          attrs.width = a;
+        } else if (['center', 'left', 'right'].includes(a)) {
+          attrs.align = a;
+        } else if (COMP_COLORS[a]) {
+          attrs.color = a;
+        }
+      });
+      return attrs;
+    }
+
+    // 個別要素の配置をマージンで制御（flex行内での寄せ）
+    function applyAlignStyle(el, align) {
+      if (align === 'center') {
+        el.style.margin = '0 auto';
+      } else if (align === 'right') {
+        el.style.marginLeft = 'auto';
+      } else if (align === 'left') {
+        el.style.marginRight = 'auto';
+      }
+    }
+
+    function shadeColor(hex, amt) {
+      const num = parseInt(hex.slice(1), 16);
+      let r = (num >> 16) & 255, g = (num >> 8) & 255, b = num & 255;
+      if (amt < 0) {
+        r = Math.round(r * (1 + amt));
+        g = Math.round(g * (1 + amt));
+        b = Math.round(b * (1 + amt));
+      } else {
+        r = Math.round(r + (255 - r) * amt);
+        g = Math.round(g + (255 - g) * amt);
+        b = Math.round(b + (255 - b) * amt);
+      }
+      return `rgb(${r},${g},${b})`;
+    }
+
+    function isLightColor(hex) {
+      const num = parseInt(hex.slice(1), 16);
+      const r = (num >> 16) & 255, g = (num >> 8) & 255, b = num & 255;
+      return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.65;
+    }
+
+    function applyColor(el, type, colorName) {
+      const color = COMP_COLORS[colorName];
+      if (!color) return;
+      if (type === 'btn' || type === 'btn-primary') {
+        el.style.backgroundColor = color;
+        el.style.borderColor = shadeColor(color, -0.15);
+        el.style.color = isLightColor(color) ? '#1e293b' : '#ffffff';
+      } else if (type === 'input' || type === 'select') {
+        el.style.borderColor = color;
+        el.style.color = color;
+      } else {
+        el.style.color = color;
+      }
+    }
+
+    function parseLineElements(lineStr) {
+      const cleanLine = lineStr;
+
+      const rowContainer = document.createElement('div');
+      rowContainer.className = 'ui-inline-row ui-align-left';
+
+      // トークン定義:
+      // 1. テキスト: $...$ または $...
+      // 2. コンポーネント: #...# または #...
+      // 3. 画像: img:...
+      const tokenRegex = /(?:\$((?:\\.|[^\$])+)\$?)|(?:#((?:\\.|[^#])+)?#?)|(?:img:\s*([^\s]+))/g;
+      
+      let match;
+      let count = 0;
+
+      while ((match = tokenRegex.exec(cleanLine)) !== null) {
+        count++;
+
+        // 1. テキスト要素 ($...)
+        if (match[1] !== undefined) {
+          const rawText = match[1];
+          const txtEl = document.createElement('span');
+          txtEl.className = 'ui-text';
+          txtEl.innerText = unescapeText(rawText);
+          rowContainer.appendChild(txtEl);
+        }
+        // 2. コンポーネント要素 (#...)
+        else if (match[2] !== undefined) {
+          const rawComp = match[2].trim();
+          
+          // タイプ解析 (例: btn-primary.w-40.center.red: ログイン)
+          const compMatch = rawComp.match(/^([a-zA-Z0-9_-]+)((?:\.[a-zA-Z0-9_-]+)*)(?::\s*([\s\S]*))?$/);
+
+          if (compMatch && ['btn', 'btn-primary', 'input', 'select', 'check', 'radio'].includes(compMatch[1])) {
+            const type = compMatch[1];
+            const attrs = parseCompAttrs(compMatch[2] || '');
+            const val = unescapeText(compMatch[3] || '');
+
+            let widthStyle = '';
+            let widthClass = '';
+            if (attrs.width === 'w-auto') {
+              widthClass = 'w-auto';
+            } else if (/^w-\d+$/.test(attrs.width)) {
+              const percent = parseInt(attrs.width.replace('w-', ''), 10);
+              if (percent >= 1 && percent <= 100) {
+                widthStyle = `width: ${percent}% !important; flex: 0 0 ${percent}% !important;`;
+              }
+            }
+
+            let el = null;
+            if (type === 'btn') {
+              el = document.createElement('div');
+              el.className = `ui-element-btn ${widthClass}`;
+              el.innerText = val;
+            } else if (type === 'btn-primary') {
+              el = document.createElement('div');
+              el.className = `ui-element-btn-primary ${widthClass}`;
+              el.innerText = val;
+            } else if (type === 'input') {
+              el = document.createElement('input');
+              el.className = `ui-element-input ${widthClass}`;
+              el.type = 'text';
+              el.placeholder = val;
+              el.disabled = true;
+            } else if (type === 'select') {
+              el = document.createElement('select');
+              el.className = `ui-element-select ${widthClass}`;
+              el.disabled = true;
+              const options = splitUnescapedPipe(val).map(s => unescapeText(s.trim()));
+              options.forEach(opt => {
+                const op = document.createElement('option');
+                op.innerText = opt;
+                el.appendChild(op);
+              });
+            } else if (type === 'check') {
+              el = document.createElement('label');
+              el.className = `ui-element-checkable ${widthClass}`;
+              el.innerHTML = `<input type="checkbox" disabled /> ${val}`;
+            } else if (type === 'radio') {
+              el = document.createElement('label');
+              el.className = `ui-element-checkable ${widthClass}`;
+              el.innerHTML = `<input type="radio" disabled /> ${val}`;
+            }
+
+            if (el) {
+              if (widthStyle) el.style.cssText = widthStyle;
+              if (attrs.align) applyAlignStyle(el, attrs.align);
+              if (attrs.color) applyColor(el, type, attrs.color);
+              rowContainer.appendChild(el);
+            }
+          } else {
+            // コロン指定のない場合やタイトルのような強調表示用 (.center / .red などのオプション対応)
+            const titleMatch = rawComp.match(/^([^:.]+)((?:\.[a-zA-Z0-9_-]+)*)(?::\s*([\s\S]*))?$/);
+            let titleVal = rawComp;
+            let titleAttrs = parseCompAttrs('');
+            if (titleMatch) {
+              const attrs = parseCompAttrs(titleMatch[2] || '');
+              if (attrs.align || attrs.color || attrs.width !== 'w-auto') {
+                titleAttrs = attrs;
+                titleVal = titleMatch[1] + (titleMatch[3] !== undefined ? ': ' + titleMatch[3] : '');
+              }
+            }
+
+            const txtEl = document.createElement('span');
+            txtEl.className = 'ui-text';
+            txtEl.style.fontWeight = 'bold';
+            txtEl.innerText = unescapeText(titleVal);
+            if (titleAttrs.align) applyAlignStyle(txtEl, titleAttrs.align);
+            if (titleAttrs.color) applyColor(txtEl, 'text', titleAttrs.color);
+            rowContainer.appendChild(txtEl);
+          }
+        }
+        // 3. 画像要素 (img:...)
+        else if (match[3] !== undefined) {
+          const imgVal = unescapeText(match[3].trim());
+          let imgEl;
+          if (imgVal.startsWith('http://') || imgVal.startsWith('https://')) {
+            imgEl = document.createElement('img');
+            imgEl.className = 'ui-image-real';
+            imgEl.src = imgVal;
+          } else {
+            imgEl = document.createElement('div');
+            imgEl.className = 'ui-image-container';
+            imgEl.innerText = '🖼️ [' + (imgVal || '画像') + ']';
+          }
+          rowContainer.appendChild(imgEl);
+        }
+      }
+
+      return count > 0 ? rowContainer : null;
+    }
+
+    function renderUI() {
+      const lines = textInput.value.split('\n');
+      previewContainer.innerHTML = '';
+
+      let stack = [{
+        indent: -1,
+        element: previewContainer,
+        columns: null,
+        lastBlock: null
+      }];
+
+      lines.forEach(line => {
+        if (!line.trim()) return;
+
+        const indent = getIndentLength(line);
+        const contentStr = line.replace(/^[\s│├└─]+/, '').trim();
+        if (!contentStr) return;
+
+        while (stack.length > 1 && stack[stack.length - 1].indent >= indent) {
+          stack.pop();
+        }
+
+        const parentCtx = stack[stack.length - 1];
+        let targetContainer = parentCtx.element;
+
+        // ヘッダーの処理
+        if (contentStr.startsWith('[ヘッダー')) {
+          const content = contentStr.replace(/^\[ヘッダー:?\s*/, '').replace(/\]$/, '');
+          const el = document.createElement('div');
+          el.className = 'ui-header';
+          el.innerText = '📌 ' + (unescapeText(content) || 'ヘッダー');
+          previewContainer.appendChild(el);
+        }
+        // フッターの処理
+        else if (contentStr.startsWith('[フッター')) {
+          const content = contentStr.replace(/^\[フッター:?\s*/, '').replace(/\]$/, '');
+          const el = document.createElement('div');
+          el.className = 'ui-footer';
+          el.innerText = '⚓ ' + (unescapeText(content) || 'フッター');
+          previewContainer.appendChild(el);
+        }
+        // メイン領域の処理
+        else if (contentStr.startsWith('[メイン領域]')) {
+          const mainEl = document.createElement('div');
+          mainEl.className = 'ui-main';
+          previewContainer.appendChild(mainEl);
+
+          stack.push({
+            indent: indent,
+            element: mainEl,
+            columns: null,
+            lastBlock: null
+          });
+        }
+        // カラム分割の判定 [左 | 右] (エスケープされていない | が存在する場合)
+        else if (contentStr.startsWith('[') && contentStr.endsWith(']') && splitUnescapedPipe(contentStr.slice(1, -1)).length > 1 && !contentStr.startsWith('#tr')) {
+          const inner = contentStr.slice(1, -1);
+          const parts = splitUnescapedPipe(inner).map(s => unescapeText(s.trim()));
+          const row = document.createElement('div');
+          row.className = 'ui-row';
+
+          const colsObj = {};
+          parts.forEach(name => {
+            const col = document.createElement('div');
+            col.className = 'ui-col';
+            row.appendChild(col);
+            colsObj[name] = col;
+          });
+
+          targetContainer.appendChild(row);
+
+          stack.push({
+            indent: indent,
+            element: row,
+            columns: colsObj,
+            lastBlock: null
+          });
+        }
+        // テーブル行 (#tr: 項目名 または #tr 項目名)
+        else if (contentStr.startsWith('#tr')) {
+          const rawContent = contentStr.replace(/^#tr[:：\s]*/, '').trim();
+          const match = rawContent.match(/^([^(（]+)(?:[（(](.*?)[）)])?/);
+          
+          const colName = unescapeText(match && match[1] ? match[1].trim() : rawContent);
+          const colData = unescapeText(match && match[2] ? match[2].trim() : '(データ)');
+
+          if (parentCtx.lastBlock) {
+            let table = parentCtx.lastBlock.querySelector('.ui-table');
+            if (!table) {
+              table = document.createElement('table');
+              table.className = 'ui-table';
+              table.innerHTML = '<thead><tr class="header-row"></tr></thead><tbody><tr></tr></tbody>';
+              parentCtx.lastBlock.appendChild(table);
+            }
+            const headerRow = table.querySelector('.header-row');
+            const dataRow = table.querySelector('tbody tr');
+
+            const th = document.createElement('th');
+            th.innerText = colName;
+            headerRow.appendChild(th);
+
+            const td = document.createElement('td');
+            td.innerText = colData;
+
+            if (colData.includes('不可') || colData.includes('閲覧のみ')) {
+              td.style.color = '#ef4444';
+              td.style.fontWeight = 'bold';
+            } else if (colData.includes('可能') || colData.includes('編集可')) {
+              td.style.color = '#10b981';
+              td.style.fontWeight = 'bold';
+            }
+
+            dataRow.appendChild(td);
+          }
+        }
+        // 単純なブロック/領域宣言 [ブロック名]
+        else if (contentStr.startsWith('[') && contentStr.endsWith(']')) {
+          const blockName = unescapeText(contentStr.slice(1, -1));
+
+          if (parentCtx.columns && parentCtx.columns[blockName]) {
+            stack.push({
+              indent: indent,
+              element: parentCtx.columns[blockName],
+              columns: null,
+              lastBlock: null
+            });
+            return;
+          }
+
+          const block = document.createElement('div');
+          block.className = 'ui-block';
+          block.innerHTML = `<div class="ui-block-title">${blockName}</div>`;
+
+          targetContainer.appendChild(block);
+
+          stack.push({
+            indent: indent,
+            element: block,
+            columns: null,
+            lastBlock: block
+          });
+        }
+        // インライン要素（テキスト、ボタン等）の行解析
+        else {
+          const rowEl = parseLineElements(contentStr);
+          if (rowEl) {
+            const dest = parentCtx.lastBlock || targetContainer;
+            dest.appendChild(rowEl);
+          }
+        }
+      });
+    }
+
+    textInput.addEventListener('input', () => {
+      pages[activePageIndex].text = textInput.value;
+      renderUI();
+    });
+
+    // 初期化
+    textInput.value = pages[activePageIndex].text;
+    renderTabs();
+    renderUI();
+  </script>
+</body>
+</html>
